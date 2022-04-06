@@ -1,0 +1,9 @@
+.header{
+    width: 42%;
+}
+
+.breadcrumb{
+    letter-spacing: 1px;
+    font-weight: 700 !important;
+    font-size: 14px;
+}
