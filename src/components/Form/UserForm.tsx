@@ -31,14 +31,20 @@ interface IFormInputs {
 
 const UserForm = () => {
   const [fileData, setFileData] = useState("");
+  const [verified, setVerified] = useState(false);
+  
+
+  console.log(verified);
+
+
 
   const onChangeHandler = (e: React.FormEvent<HTMLInputElement>) => {
-    console.log(e.currentTarget.files);
     if (e.currentTarget.files && e.currentTarget.files[0]) {
-      if (e.currentTarget.files[0].size > 50000) {
+      console.log('file size',e.currentTarget.files[0].size);
+      if (e.currentTarget.files[0].size > 5000000) {
         setFileData("file size should  less than 5mb");
       } else {
-        return;
+        return null;
       }
     }
   };
@@ -48,16 +54,27 @@ const UserForm = () => {
     formState: { errors },
   } = useForm<IFormInputs>();
   console.log(errors);
-  const onSubmit: SubmitHandler<IFormInputs> = (data) => {
-    console.log(data);
-    uploadFile(data);
-    writeUserDataToStrapi(data);
-    uploadFileToStrapi(data);
-  };
 
-  const onChanges = (value: any) => {
-    console.log("Captcha value:", value);
-  };
+  
+ 
+    const onSubmit: SubmitHandler<IFormInputs> =  async(data) => {
+      console.log(data);
+     if(verified){
+        // alert('captcha vreification success')
+        await uploadFile(data);
+        await writeUserDataToStrapi(data);
+        await uploadFileToStrapi(data);
+        alert('file uploaded successfully')
+        window.location.reload();
+        
+      }
+      else{
+        alert('captcha verification failed')
+      } 
+  
+    };
+   
+
 
   // Import the functions you need from the SDKs you need
 
@@ -157,10 +174,12 @@ const UserForm = () => {
     d.append("files", data.file[0]);
     console.log("FORM DAATA");
     console.log(d);
-    await fetch("http://localhost:1337/api/upload/", {
+      await fetch("http://localhost:1337/api/upload/", {
       method: "POST",
       body: d,
-    });
+    })
+
+    
   };
   const writeUserDataToStrapi = async (data: any) => {
     await fetch("http://localhost:1337/api/collections", {
@@ -177,13 +196,13 @@ const UserForm = () => {
           linkedin: data.linkedin,
           informatin: data.information,
           gender: data.gender,
-          file: data.file,
+          // file: data.file,
         },
       }),
     });
   };
 
-  console.log({  errors })
+  console.log( errors );
 
   return (
     <div className="user-form d-flex justify-content-center py-5">
@@ -217,8 +236,11 @@ const UserForm = () => {
             <div className="d-flex flex-column w-100">
               <input
                 placeholder="Email"
-                type="email"
-                {...register("email",{pattern: {value:/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i,message:'Invalid email'},minLength:{value: 15, message:"min length is 15"} , required:{value: true, message: 'field required'}})}
+                type="text"
+                {...register("email" , {pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i,
+                  message: 'invalid email'
+                }, required:{ value: true, message: 'filed required'}})}
                 className="form-control "
                 id="exampleInputEmail1"
               />
@@ -337,10 +359,11 @@ const UserForm = () => {
               <option value="angels">Angels</option>
             </select>
           </div>
-          <div className=" ps-4 w-100 d-flex justify-content-center">
+          <div>{/* <div className=" ps-4 w-100 d-flex justify-content-center" onClick={}> */}
             <ReCAPTCHA
               sitekey="6Le-JEQfAAAAAD0r2SFM1s_5-bbnVoLjTLsGwKe2"
-              onChange={onChanges}
+              onChange={() => setVerified(true)}
+              onErrored={()=>setVerified(false)}
             />
           </div>
 
@@ -348,18 +371,20 @@ const UserForm = () => {
             <button
               type="submit"
               className="btn btn-primary text-uppercase"
-              onClick={() => {
-                console.log("ERRORS");
-                console.log(errors);
-              }}
+          
+        
             >
               Submit application
             </button>
           </div>
         </form>
       </div>
+      
+
+
     </div>
   );
 };
+
 
 export default UserForm;
