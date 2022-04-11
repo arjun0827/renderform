@@ -9,7 +9,9 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set } from "firebase/database";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useForm, SubmitHandler } from "react-hook-form";
-import "./user_form.css";
+import InputField from "../InputField/InputField";
+import { IoAttach } from "react-icons/io5";
+import "./UserForm.css";
 
 enum GenderEnum {
   male = "male",
@@ -32,18 +34,14 @@ interface IFormInputs {
 const UserForm = () => {
   const [fileData, setFileData] = useState("");
   const [verified, setVerified] = useState(false);
-  
-
-  console.log(verified);
-
-
+  const [fileName, setFileName] = useState("");
 
   const onChangeHandler = (e: React.FormEvent<HTMLInputElement>) => {
     if (e.currentTarget.files && e.currentTarget.files[0]) {
-      console.log('file size',e.currentTarget.files[0].size);
       if (e.currentTarget.files[0].size > 5000000) {
         setFileData("file size should  less than 5mb");
       } else {
+        setFileName(e.currentTarget.files[0].name);
         return null;
       }
     }
@@ -52,34 +50,20 @@ const UserForm = () => {
     register,
     handleSubmit,
     formState: { errors },
+    formState,
   } = useForm<IFormInputs>();
-  console.log(errors);
 
-  
- 
-    const onSubmit: SubmitHandler<IFormInputs> =  async(data) => {
-      console.log(data);
-     if(verified){
-        // alert('captcha vreification success')
-        await uploadFile(data);
-        await writeUserDataToStrapi(data);
-        await uploadFileToStrapi(data);
-        alert('file uploaded successfully')
-        window.location.reload();
-        
-      }
-      else{
-        alert('captcha verification failed')
-      } 
-  
-    };
-   
-
-
-  // Import the functions you need from the SDKs you need
-
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  const onSubmit: SubmitHandler<IFormInputs> = async (data) => {
+    console.log(data.file, "file");
+    if (verified) {
+      await uploadFile(data);
+      await writeUserDataToStrapi(data);
+      alert("file uploaded successfully");
+      // window.location.reload();
+    } else {
+      alert("captcha verification failed");
+    }
+  };
 
   // Your web app's Firebase configuration
   const firebaseConfig = {
@@ -120,33 +104,26 @@ const UserForm = () => {
         }
       },
       (error) => {
-        // A full list of error codes is available at
-        // https://firebase.google.com/docs/storage/web/handle-errors
         switch (error.code) {
           case "storage/unauthorized":
-            // User doesn't have permission to access the object
             console.log("User doesn't have permission to access the object");
             break;
+
           case "storage/canceled":
-            // User canceled the upload
             console.log("User canceled the upload");
             break;
 
-          // ...
-
           case "storage/unknown":
-            // Unknown error occurred, inspect error.serverResponse
             console.log("Unknown error occurred, inspect error.serverResponse");
             break;
         }
       },
       () => {
-        // Upload completed successfully, now we can get the download URL
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
           console.log("File available at", downloadURL);
           data.file = downloadURL;
           writeUserData(data);
-          console.log(data);
+          console.log({ "firebase url": data });
         });
       }
     );
@@ -168,95 +145,70 @@ const UserForm = () => {
       .catch(() => alert("Something went wrong"));
   };
 
-  const uploadFileToStrapi = async (data: any) => {
-    let d = new FormData();
-    console.log(data.file[0]);
-    d.append("files", data.file[0]);
-    console.log("FORM DAATA");
-    console.log(d);
-      await fetch("http://localhost:1337/api/upload/", {
-      method: "POST",
-      body: d,
-    })
-
-    
-  };
   const writeUserDataToStrapi = async (data: any) => {
-    await fetch("http://localhost:1337/api/collections", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        data: {
-          name: data.names,
-          email: data.email,
-          number: data.number,
-          company: data.company,
-          linkedin: data.linkedin,
-          informatin: data.information,
-          gender: data.gender,
-          // file: data.file,
-        },
-      }),
-    });
-  };
+    const postData = {
+      name: data.names,
+      email: data.email,
+      number: data.number,
+      company: data.company,
+      linkedin: data.linkedin,
+      informatin: data.information,
+      gender: data.gender,
+    };
+    const file = data.file[0];
 
-  console.log( errors );
+    const request = new XMLHttpRequest();
+    const formData = new FormData();
+
+    formData.append("files.file", file, file.name);
+
+    formData.append("data", JSON.stringify(postData));
+
+    request.open("POST", `http://localhost:1337/api/collections`);
+
+    request.send(formData);
+  };
 
   return (
     <div className="user-form d-flex justify-content-center py-5">
       <div className="form">
-        <h6 className="text-uppercase pb-5">submit your application</h6>
+        <h6 className="text-uppercase pb-5 ">submit your application</h6>
         <form onSubmit={handleSubmit(onSubmit)} method="POST">
-          <div className="mb-3 d-flex">
-            <label htmlFor="exampleInputName" className="form-label w-50">
-              Full name
-            </label>
-            <div className="d-flex flex-column w-100">
-              <input
-                type="text"
-                {...register("names", {
-                  required: "This field is required",
-                  minLength: {
-                    value: 10,
-                    message: "minimum length 10 is required",
-                  },
-                })}
-                className="form-control "
-                id="exampleInputName"
-              />
-              {errors.names && <p>{errors.names.message}</p>}
-            </div>
-          </div>
-          <div className="py-3 d-flex">
-            <label htmlFor="exampleInputEmail1" className="form-label w-50">
-              Email address
-            </label>
-            <div className="d-flex flex-column w-100">
-              <input
-                placeholder="Email"
-                type="text"
-                {...register("email" , {pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i,
-                  message: 'invalid email'
-                }, required:{ value: true, message: 'filed required'}})}
-                className="form-control "
-                id="exampleInputEmail1"
-              />
-              {errors.email && 
-                <p className="text-primary">{errors.email.message}</p>
-              }
-            </div>
-          </div>
+          <InputField
+            formState={formState}
+            register={register}
+            fieldName="names"
+            label="Full Name"
+          />
+          <InputField
+            formState={formState}
+            register={register}
+            fieldName="email"
+            label="Email"
+          />
 
-          <div className="py-3 d-flex">
-            <label htmlFor="formFile" className="form-label file-label">
+          <div className="py-3 d-flex responsive-screen">
+            <label
+              htmlFor="formFile"
+              className="form-label file-label asterik-sign"
+            >
               Resume/CV
             </label>
             <div className="d-flex flex-column">
+              <button
+                disabled
+                className="choose-btn text-uppercase btn px-2 py-2 w-75"
+              >
+                {fileName ? (
+                  <span>{`${fileName.substring(0, 20)}...`}</span>
+                ) : (
+                  <span>
+                    <IoAttach size={20} /> Attach Resume/cv
+                  </span>
+                )}
+              </button>
               <input
-                className="form-control w-100"
+                className=" w-100 file-input"
                 {...register("file")}
                 type="file"
                 accept="application/pdf"
@@ -266,65 +218,29 @@ const UserForm = () => {
               {<p>{fileData}</p>}
             </div>
           </div>
-          <div className="py-3 d-flex">
-            <label htmlFor="quantity" className="form-label w-50">
-              Phone
-            </label>
-            <div className="d-flex flex-column w-100">
-              <input
-                type="text"
-                id="quantity"
-                {...register("number", {
-                  pattern: {
-                    value: /(\+[\d]{1,5}|0)[7-9]\d{9}$/,
-                    message: "invalid phone number ",
-                  },
-                  minLength: {
-                    value: 13,
-                    message: "country code also required",
-                  },
-                  required: { value: true, message: "This field is required" },
-                })}
-                className="form-control"
-              />
-              {errors.number && <p>{errors.number.message}</p>}
-            </div>
-          </div>
-          <div className="py-3 d-flex">
-            <label htmlFor="exampleInputCompany" className="form-label w-50">
-              Current Company
-            </label>
-            <input
-              type="text"
-              className="form-control "
-              {...register("company")}
-              id="exampleInputCompany"
-            />
-          </div>
 
-          <div className="py-3 d-flex">
-            <label htmlFor="exampleInputLinkedin" className="form-label w-50">
-              Linkedin URL
-            </label>
-            <div className="d-flex flex-column w-100">
-              <input
-                type="text"
-                className="form-control "
-                {...register("linkedin", {
-                  pattern: {
-                    value:
-                      /((https?:\/\/)?((www|\w\w)\.)?linkedin\.com\/)((([\w]{2,3})?)|([^/]+\/(([\w|\d-&#?=])+\/?){1,}))$/,
-                    message: "invalid linkedin profile",
-                  },
-                  required: { value: true, message: "This field is required" },
-                })}
-                id="exampleInputLinkedin"
-              />
-              {errors.linkedin && <p>{errors.linkedin.message}</p>}
-            </div>
-          </div>
+          <InputField
+            formState={formState}
+            label="Phone"
+            register={register}
+            fieldName="number"
+          />
 
-          <div className="py-3">
+          <InputField
+            formState={formState}
+            label="Current Company"
+            register={register}
+            fieldName="company"
+          />
+
+          <InputField
+            formState={formState}
+            label="Linkedin URL"
+            register={register}
+            fieldName="linkedin"
+          />
+
+          <div className="py-3 responsive-screen">
             <label
               htmlFor="floatingTextarea"
               className="text-uppercase fw-bold py-5"
@@ -332,7 +248,7 @@ const UserForm = () => {
               additional information
             </label>
             <textarea
-              className="form-control"
+              className="form-control text-area-field"
               placeholder="Add a cover letter or anything else you want to share"
               id="floatingTextarea"
               rows={6}
@@ -343,7 +259,7 @@ const UserForm = () => {
             {errors.information && <p>{errors.information.message}</p>}
           </div>
 
-          <div className="py-5 d-flex">
+          <div className="responsive-screen py-5 d-flex justify-content-center align-items-baseline">
             <label htmlFor="floatingSelect" className="py-3 w-50">
               Gender
             </label>
@@ -359,32 +275,23 @@ const UserForm = () => {
               <option value="angels">Angels</option>
             </select>
           </div>
-          <div>{/* <div className=" ps-4 w-100 d-flex justify-content-center" onClick={}> */}
+          <div className="recaptcha d-flex justify-content-center">
             <ReCAPTCHA
               sitekey="6Le-JEQfAAAAAD0r2SFM1s_5-bbnVoLjTLsGwKe2"
               onChange={() => setVerified(true)}
-              onErrored={()=>setVerified(false)}
+              onErrored={() => setVerified(false)}
             />
           </div>
 
           <div className="w-100 d-flex justify-content-center py-5">
-            <button
-              type="submit"
-              className="btn btn-primary text-uppercase"
-          
-        
-            >
+            <button type="submit" className="btn btn-primary text-uppercase">
               Submit application
             </button>
           </div>
         </form>
       </div>
-      
-
-
     </div>
   );
 };
-
 
 export default UserForm;

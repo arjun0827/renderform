@@ -1,0 +1,25 @@
+.form-control{
+    width: 90%;
+}
+
+.asterik-sign::after{
+    content: '*';
+    color: red;
+    margin: 4px;
+}
+
+input:focus{
+    box-shadow: none !important;
+    border: 1px solid black !important;
+}
+
+@media screen and (max-width: 768px) {
+    .responsive-screen{
+        display: block !important;
+        padding: 0px 20px;
+    }
+
+    .form-control{
+        width: 100%;
+    }
+}
